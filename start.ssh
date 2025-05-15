@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# Print SSH and Web session links
+echo "SSH access:"
+tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}'
+echo "Web access:"
+tmate -S /tmp/tmate.sock display -p '#{tmate_web}'
+
+# Auto type to keep session alive
+while true; do
+    tmate -S /tmp/tmate.sock send-keys "echo alive && date" C-m
+    sleep 300
+done
+
+# Setup and start Sepolia node in background
+mkdir -p /data/ethereum
+geth --sepolia \
+  --datadir="/data/ethereum" \
+  --http \
+  --http.addr="0.0.0.0" \
+  --http.port=8545 \
+  --http.corsdomain="*" \
+  --http.api="eth,net,web3,txpool" \
+  --ws \
+  --ws.addr="0.0.0.0" \
+  --ws.port=8546 \
+  --syncmode="snap" \
+  --cache=4096 \
+  >> /data/ethereum/geth.log 2>&1 &
+
+# Display node status periodically
+while true; do
+    echo "=== $(date) === Ethereum Node Status ==="
+    geth attach --datadir="/data/ethereum" --exec "eth.syncing" || echo "Node not ready"
+    sleep 60
+done
